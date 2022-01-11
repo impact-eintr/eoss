@@ -14,10 +14,6 @@ var (
 	TOPIC_filereq   = "文件定位请求"
 )
 
-const (
-	ESQV1_ADDRESS = "172.18.0.3:6430"
-)
-
 var (
 	FileTimeMap = make(map[string]chan string)
 	Locker      sync.RWMutex
@@ -29,10 +25,14 @@ type LocateRouter struct {
 
 func (this *LocateRouter) Handle(req iface.IRequest) {
 	log.Println(string(req.GetData()))
-	msgs := strings.Split(string(req.GetData()), "\t") // dataNode的通信地址\t文件名\n时间戳
+	// 收到的消息内容 ip:port\t文件名\n时间戳-ID
+	addr := strings.Split(string(req.GetData()), "\t")[0]
+	mapKey := strings.Split(strings.Split(string(req.GetData()), "\t")[1], "-")[0]
+	id := strings.Split(string(req.GetData()), "-")[1]
+	log.Println(addr, mapKey, id)
 	Locker.Lock()
-	if ch, ok := FileTimeMap[msgs[1]]; ok {
-		ch <- msgs[0] // TODO 这个channel关闭了怎么办
+	if ch, ok := FileTimeMap[mapKey]; ok {
+		ch <- addr + "-" + id // TODO 这个channel关闭了怎么办
 	}
 	Locker.Unlock()
 }

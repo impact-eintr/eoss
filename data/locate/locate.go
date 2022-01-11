@@ -3,19 +3,42 @@ package locate
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/impact-eintr/enet"
 	"github.com/impact-eintr/eoss/mq/esqv1"
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
 )
 
-func Locate(name string) bool {
-	_, err := os.Stat(name)
-	return !os.IsNotExist(err)
+var objects = make(map[string]int)
+var mutex sync.Mutex
+
+func Locate(hash string) int {
+	mutex.Lock()
+	id, ok := objects[hash]
+	mutex.Unlock()
+	if !ok {
+		return -1
+	}
+	return id
+}
+
+func Add(hash string, id int) {
+	mutex.Lock()
+	objects[hash] = id
+	mutex.Unlock()
+}
+
+func Del(hash string) {
+	mutex.Lock()
+	delete(objects, hash)
+	mutex.Unlock()
 }
 
 func StartLocate() {
@@ -25,11 +48,11 @@ func StartLocate() {
 		q.Bind("dataServers")
 		c := q.Consume()
 		for msg := range c {
-			object, e := strconv.Unquote(string(msg.Body))
+			hash, e := strconv.Unquote(string(msg.Body))
 			if e != nil {
 				panic(e)
 			}
-			if Locate("/tmp/objects/" + object) {
+			if Locate(hash) != -1 {
 				q.Send(msg.ReplyTo, os.Getenv("LISTEN_ADDRESS"))
 			}
 		}
@@ -81,11 +104,12 @@ func StartLocate() {
 				// 向ApiNode通信
 				s := strings.Split(string(msg.GetData()), "\n") // apiIP:api:PORT\n文件名\n时间戳
 				apiAddr := s[0]
-				object := s[1]
+				hash := s[1]
 				timeStamp := s[2]
 
 				// 先检查有没有文件
-				if Locate("/tmp/eoss/objects/" + object) {
+				ID := Locate(hash) // 文件分片ID
+				if ID != -1 {
 					fmt.Println("即将通知addr:", apiAddr)
 
 					c, err := net.Dial("tcp4", apiAddr)
@@ -93,10 +117,12 @@ func StartLocate() {
 						fmt.Println("client start err ", err)
 						return
 					}
-					// 消息内容 ip:port\t文件名\n时间戳
-					addr, _ := dp.Pack(enet.NewMsgPackage(20,
-						[]byte(os.Getenv("LISTEN_ADDRESS")+":"+os.Getenv("LISTEN_PORT")+"\t"+object+"\n"+timeStamp)))
-					_, err = c.Write(addr)
+					// 发送的消息内容 ip:port\t文件名\n时间戳-ID
+					s := fmt.Sprintf("%s:%s\t%s\n%s-%d", os.Getenv("LISTEN_ADDRESS"),
+						os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
+					respMsg, _ := dp.Pack(enet.NewMsgPackage(20,
+						[]byte(s)))
+					_, err = c.Write(respMsg)
 					if err != nil {
 						fmt.Println("write error err ", err)
 						return
@@ -111,4 +137,22 @@ func StartLocate() {
 		panic("需要消息队列")
 	}
 
+}
+
+// 对外提供服务前先要知道自己有哪些文件
+func CollectObjects() {
+	files, _ := filepath.Glob("/tmp/eoss/objects/*")
+	for i := range files {
+		file := strings.Split(filepath.Base(files[i]), ".")
+		log.Println(file)
+		if len(file) != 3 {
+			panic(files[i])
+		}
+		hash := file[0]
+		id, e := strconv.Atoi(file[1])
+		if e != nil {
+			panic(e)
+		}
+		objects[hash] = id
+	}
 }

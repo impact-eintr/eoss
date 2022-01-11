@@ -9,10 +9,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impact-eintr/eoss/api/heartbeat"
 	"github.com/impact-eintr/eoss/api/locate"
 	"github.com/impact-eintr/eoss/errmsg"
 	"github.com/impact-eintr/eoss/es"
-	"github.com/impact-eintr/eoss/objectstream"
+	"github.com/impact-eintr/eoss/rs"
 )
 
 func Get(c *gin.Context) {
@@ -33,29 +34,33 @@ func Get(c *gin.Context) {
 		return
 	}
 
-	// meta.Hash 是不能直接用作URL的
 	if meta.Hash == "" {
-		c.Status(http.StatusNotFound)
+		errmsg.ErrLog(c, http.StatusNotFound, e.Error())
 		return
 	}
 
-	object := url.PathEscape(meta.Hash) // 这个是转为URL后的hash_value
-	stream, e := getStream(object)
+	hash := url.PathEscape(meta.Hash) // 这个是转为URL后的hash_value
+	stream, e := GetStream(hash, meta.Size)
 	if e != nil {
 		errmsg.ErrLog(c, http.StatusNotFound, e.Error())
 		return
 	}
 
-	//data, _ := ioutil.ReadAll(stream)
-	//c.Data(http.StatusOK, "application/octet-stream", data)
-	io.Copy(c.Writer, ioutil.NopCloser(stream))
+	if _, err := io.Copy(c.Writer, ioutil.NopCloser(stream)); err != nil {
+		errmsg.ErrLog(c, http.StatusOK, err.Error())
+		return
+	}
+	stream.Close()
 }
 
-func getStream(object string) (io.Reader, error) {
-	server := locate.Locate(object)
-	if server == "" {
-		return nil, fmt.Errorf("object %s locate fail", object)
-
+func GetStream(hash string, size int64) (*rs.RSGetStream, error) {
+	locateInfo := locate.Locate(hash)
+	if len(locateInfo) < rs.DATA_SHARDS {
+		return nil, fmt.Errorf("object %s locate fail, result %v", hash, locateInfo)
 	}
-	return objectstream.NewGetStream(server, object)
+	dataServers := make([]string, 0)
+	if len(locateInfo) != rs.ALL_SHARDS {
+		dataServers = heartbeat.ChooseRandomDataServers(rs.ALL_SHARDS-len(locateInfo), locateInfo)
+	}
+	return rs.NewRSGetStream(locateInfo, dataServers, hash, size)
 }
