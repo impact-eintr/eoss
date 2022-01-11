@@ -1,0 +1,1 @@
+{"mappings":{"objects":{"properties":{"name":{"type":"text"}, "version":{"type":"integer"}, "size":{"type":"integer"}, "hash":{"type":"text"}}}}}

@@ -13,3 +13,10 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+cmd/apiserver/apiserver
+cmd/dataserver/dataserver
+cmd/esqv1/esqv1
+
+storage/*
+
+*.ccls*
