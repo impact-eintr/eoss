@@ -1,1 +1,14 @@
-{"mappings":{"objects":{"properties":{"name":{"type":"text"}, "version":{"type":"integer"}, "size":{"type":"integer"}, "hash":{"type":"text"}}}}}
+{
+    "mappings":{
+        "objects":{
+            "properties":{
+                "name":{"type":"text"},
+                "version":{"type":"integer"},
+                "size":{"type":"integer"},
+                "hash":{"type":"text"},
+                "path":{"type":"text"},
+                "thumbnai":{"type":"text"}
+            }
+        }
+    }
+}

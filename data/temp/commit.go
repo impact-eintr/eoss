@@ -1,7 +1,6 @@
 package temp
 
 import (
-	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -27,6 +26,5 @@ func commitTempObject(datFile string, tempinfo *tempInfo) {
 	d := url.PathEscape(utils.CalculateHash(f))
 	f.Close()
 	os.Rename(datFile, "/tmp/eoss/objects/"+tempinfo.Name+"."+d)
-	log.Println("???????", "/tmp/eoss/objects/"+tempinfo.Name+"."+d)
 	locate.Add(tempinfo.hash(), tempinfo.id())
 }

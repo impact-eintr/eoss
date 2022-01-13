@@ -3,7 +3,6 @@ package locate
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -110,8 +109,6 @@ func StartLocate() {
 				// 先检查有没有文件
 				ID := Locate(hash) // 文件分片ID
 				if ID != -1 {
-					fmt.Println("即将通知addr:", apiAddr)
-
 					c, err := net.Dial("tcp4", apiAddr)
 					if err != nil {
 						fmt.Println("client start err ", err)
@@ -144,7 +141,6 @@ func CollectObjects() {
 	files, _ := filepath.Glob("/tmp/eoss/objects/*")
 	for i := range files {
 		file := strings.Split(filepath.Base(files[i]), ".")
-		log.Println(file)
 		if len(file) != 3 {
 			panic(files[i])
 		}

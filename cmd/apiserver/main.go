@@ -12,12 +12,13 @@ import (
 
 func main() {
 	go heartbeat.ListenHeartbeat() // 监听心跳
-	go esqv1.Test()                // 监听文件信息
+	go esqv1.ListenFileResponse()  // 监听文件信息
 
 	eng := gin.Default()
 
 	objGroup := eng.Group("/objects")
 	{
+		objGroup.POST("/:name", objects.Post)
 		objGroup.PUT("/:name", objects.Put)
 		objGroup.GET("/:name", objects.Get)
 		objGroup.DELETE("/:name", objects.Delete)

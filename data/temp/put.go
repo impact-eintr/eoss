@@ -13,17 +13,14 @@ func Put(ctx *gin.Context) {
 	uuid := ctx.Param("uuid")
 	tempinfo, err := readFromFile(uuid)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusNotFound, err.Error())
 		return
 	}
-	log.Println(tempinfo)
 
 	infoFile := "/tmp/eoss/temp/" + uuid
 	datFile := infoFile + ".dat"
 	f, err := os.OpenFile(datFile, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -31,7 +28,6 @@ func Put(ctx *gin.Context) {
 
 	info, err := f.Stat()
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -44,6 +40,5 @@ func Put(ctx *gin.Context) {
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, "tempfile mismatch size")
 		return
 	}
-	log.Println(tempinfo)
 	commitTempObject(datFile, tempinfo)
 }

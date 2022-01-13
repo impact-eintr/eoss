@@ -17,7 +17,7 @@ import (
 )
 
 func Get(ctx *gin.Context) {
-	file := getFile(ctx.Param("filehash")[1:])
+	file := getFile(url.PathEscape(ctx.Param("filehash")[1:]))
 	if file == "" {
 		errmsg.ErrRawLog(ctx, http.StatusNotFound, "cannot find file")
 		return
@@ -26,7 +26,7 @@ func Get(ctx *gin.Context) {
 }
 
 func getFile(name string) string {
-	files, _ := filepath.Glob(os.Getenv("STORAGE_ROOT") + "/tmp/eoss/objects/" + name + ".*")
+	files, _ := filepath.Glob("/tmp/eoss/objects/" + name + ".*")
 	if len(files) != 1 {
 		return ""
 	}

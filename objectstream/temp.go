@@ -3,7 +3,6 @@ package objectstream
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -32,7 +31,6 @@ func NewTempPutStream(server, object string, size int64) (*TempPutStream, error)
 }
 
 func (w *TempPutStream) Write(p []byte) (n int, err error) {
-	log.Println(w)
 	request, e := http.NewRequest("PATCH", "http://"+w.Server+"/temp/"+w.Uuid, strings.NewReader(string(p)))
 	if e != nil {
 		return 0, e

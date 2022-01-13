@@ -16,7 +16,6 @@ func Patch(ctx *gin.Context) {
 	uuid := ctx.Param("uuid")
 	tempinfo, err := readFromFile(uuid)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusNotFound, err.Error())
 		return
 	}
@@ -25,7 +24,6 @@ func Patch(ctx *gin.Context) {
 	datFile := infoFile + ".dat"
 	f, err := os.OpenFile(datFile, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -33,13 +31,11 @@ func Patch(ctx *gin.Context) {
 
 	_, err = io.Copy(f, ctx.Request.Body)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	info, err := f.Stat()
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -48,7 +44,6 @@ func Patch(ctx *gin.Context) {
 		os.Remove(datFile)
 		os.Remove(infoFile)
 		log.Println("actual size", actual, "exceeds", tempinfo.Size)
-
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, "tempfile mismatch size")
 		return
 	}

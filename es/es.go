@@ -1,12 +1,18 @@
 package es
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"reflect"
 	"strings"
+
+	"github.com/olivere/elastic"
 )
 
 type Metadata struct {
@@ -14,6 +20,7 @@ type Metadata struct {
 	Version  int    `json:"version"`
 	Size     int64  `json:"size"`
 	Hash     string `json:"hash"`
+	Path     string `json:"path"`
 	Thumbnai string `json:"thumbnai"`
 }
 
@@ -28,17 +35,13 @@ type searchResult struct {
 	}
 }
 
-const (
-	ES_ADDRESS = "172.18.0.2:9200"
-)
-
-// TODO 缩略图
+// TODO 缩略图 目录
 func PutMetadata(name string, version int, size int64, hash string) error {
 	doc := fmt.Sprintf(`{"name":"%s","version":%d,"size":%d,"hash":"%s"}`,
 		name, version, size, hash)
 	client := http.Client{}
 	url := fmt.Sprintf("http://%s/metadata/objects/%s_%d?op_type=create",
-		ES_ADDRESS, name, version)
+		os.Getenv("ES_SERVER"), name, version)
 	request, _ := http.NewRequest("PUT", url, strings.NewReader(doc))
 	request.Header.Set("Content-Type", "application/json")
 	r, e := client.Do(request)
@@ -64,14 +67,14 @@ func GetMetadata(name string, version int) (Metadata, error) {
 func DelMetadata(name string, version int) {
 	client := http.Client{}
 	url := fmt.Sprintf("http://%s/metadata/objects/%s_%d",
-		ES_ADDRESS, name, version)
+		os.Getenv("ES_SERVER"), name, version)
 	request, _ := http.NewRequest("DELETE", url, nil)
 	client.Do(request)
 }
 
 func getMetadata(name string, versionId int) (meta Metadata, e error) {
 	url := fmt.Sprintf("http://%s/metadata/objects/%s_%d/_source",
-		ES_ADDRESS, name, versionId)
+		os.Getenv("ES_SERVER"), name, versionId)
 	r, e := http.Get(url)
 	if e != nil {
 		return
@@ -87,7 +90,7 @@ func getMetadata(name string, versionId int) (meta Metadata, e error) {
 
 func SearchLatestVersion(name string) (meta Metadata, err error) {
 	url := fmt.Sprintf("http://%s/metadata/_search?q=name:%s&size=1&sort=version:desc",
-		ES_ADDRESS, url.PathEscape(name))
+		os.Getenv("ES_SERVER"), url.PathEscape(name))
 	r, err := http.Get(url)
 	if err != nil {
 		return
@@ -115,7 +118,7 @@ func AddVersion(name, hash string, size int64) error {
 
 func SearchAllVersions(name string, from, size int) ([]Metadata, error) {
 	url := fmt.Sprintf("http://%s/metadata/_search?sort=name,version&from=%d&size=%d",
-		ES_ADDRESS, from, size)
+		os.Getenv("ES_SERVER"), from, size)
 	if name != "" {
 		url += "&q=name:" + name
 	}
@@ -151,7 +154,7 @@ type aggregateResult struct {
 
 func SearchVersionStatus(min_doc_count int) ([]Bucket, error) {
 	client := http.Client{}
-	url := fmt.Sprintf("http://%s/metadata/_search", ES_ADDRESS)
+	url := fmt.Sprintf("http://%s/metadata/_search", os.Getenv("ES_SERVER"))
 	body := fmt.Sprintf(`
         {
           "size": 0,
@@ -183,7 +186,7 @@ func SearchVersionStatus(min_doc_count int) ([]Bucket, error) {
 }
 
 func HasHash(hash string) (bool, error) {
-	url := fmt.Sprintf("http://%s/metadata/_search?q=hash:%s&size=0", ES_ADDRESS, hash)
+	url := fmt.Sprintf("http://%s/metadata/_search?q=hash:%s&size=0", os.Getenv("ES_SERVER"), hash)
 	r, e := http.Get(url)
 	if e != nil {
 		return false, e
@@ -196,7 +199,7 @@ func HasHash(hash string) (bool, error) {
 
 func SearchHashSize(hash string) (size int64, e error) {
 	url := fmt.Sprintf("http://%s/metadata/_search?q=hash:%s&size=1",
-		ES_ADDRESS, hash)
+		os.Getenv("ES_SERVER"), hash)
 	r, e := http.Get(url)
 	if e != nil {
 		return
@@ -211,5 +214,51 @@ func SearchHashSize(hash string) (size int64, e error) {
 	if len(sr.Hits.Hits) != 0 {
 		size = sr.Hits.Hits[0].Source.Size
 	}
+	return
+}
+
+func Test() (result []Metadata) {
+	ctx := context.Background()
+
+	client, err := elastic.NewClient(
+		elastic.SetURL("http://"+os.Getenv("ES_SERVER")),
+		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
+	)
+	if err != nil {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+	_, code, err := client.Ping("http://" + os.Getenv("ES_SERVER")).Do(ctx)
+	if err != nil || code != http.StatusOK {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+
+	// 新建一个游标 获取全量数据的数量
+	res, _ := client.Scroll("metadata").
+		Scroll("10m").
+		Do(ctx)
+	size := int(res.TotalHits())
+
+	// 查询条件
+	q := elastic.NewRangeQuery("version").Gte(1)
+
+	res, err = client.Search().Index("metadata").Type("objects").Query(q).From(0).Size(size).Do(ctx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	//从搜索结果中取数据的方法
+	for _, item := range res.Each(reflect.TypeOf(Metadata{})) {
+		if t, ok := item.(Metadata); ok {
+			fmt.Println(t)
+			result = append(result, t)
+		}
+	}
+
 	return
 }

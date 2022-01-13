@@ -2,7 +2,6 @@ package temp
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,14 +23,12 @@ func Post(ctx *gin.Context) {
 	name := url.PathEscape(ctx.Param("filehash")[1:])
 	size, err := strconv.ParseInt(ctx.Request.Header.Get("size"), 0, 64)
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	t := tempInfo{uuid, name, size}
 	err = t.writeToFile()
 	if err != nil {
-		log.Println(err)
 		errmsg.ErrRawLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
