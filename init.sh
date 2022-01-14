@@ -16,3 +16,6 @@ export LISTEN_PORT=
 
 # 文件存储地址前缀
 export STORAGE_ROOT=
+
+# 设定服务日志输出级别
+export GIN_MODE=release

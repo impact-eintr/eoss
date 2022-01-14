@@ -3,7 +3,6 @@ package objects
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"github.com/impact-eintr/eoss/errmsg"
 	"github.com/impact-eintr/eoss/es"
 	"github.com/impact-eintr/eoss/rs"
+	"github.com/impact-eintr/eoss/utils"
 )
 
 func Get(c *gin.Context) {
@@ -46,7 +46,14 @@ func Get(c *gin.Context) {
 		return
 	}
 
-	if _, err := io.Copy(c.Writer, ioutil.NopCloser(stream)); err != nil {
+	offset := utils.GetOffsetFromHeader(c.Request.Header)
+	if offset != 0 {
+		stream.Seek(offset, io.SeekCurrent)
+		c.Writer.Header().Set("content-range", fmt.Sprintf("bytes %d-%d/%d", offset, meta.Size-1, meta.Size))
+		c.Writer.WriteHeader(http.StatusPartialContent)
+	}
+
+	if _, err := io.Copy(c.Writer, stream); err != nil {
 		errmsg.ErrLog(c, http.StatusOK, err.Error())
 		return
 	}
