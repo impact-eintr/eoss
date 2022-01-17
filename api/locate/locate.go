@@ -17,6 +17,7 @@ import (
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
 	"github.com/impact-eintr/eoss/rs"
 	"github.com/impact-eintr/eoss/types"
+	"github.com/impact-eintr/esq"
 )
 
 func Get(ctx *gin.Context) {
@@ -65,11 +66,10 @@ func Locate(name string) (locateInfo map[int]string) {
 		mapKey := fmt.Sprintf("%s\n%d", name, time.Now().Unix())
 
 		// 向dataNode集群广播消息
-		dp := enet.GetDataPack()
 		localServer := fmt.Sprintf("%s:%d", os.Getenv("LISTEN_ADDRESS"), enet.GlobalObject.Port)
 		// 向dataNode传递的消息 ip:port\n文件名\n时间戳
-		msg := fmt.Sprintf("%s\t%s\n%s", esqv1.TOPIC_filereq, localServer, mapKey)
-		data, _ := dp.Pack(enet.NewMsgPackage(0, []byte(msg)))
+		msg := fmt.Sprintf("%s\n%s", localServer, mapKey)
+		data := esq.PackageProtocol(0, "PUB", esqv1.TOPIC_filereq, os.Getenv("LISTEN_ADDRESS"), msg)
 		_, err = conn.Write(data)
 		if err != nil {
 			fmt.Println("write error err ", err)

@@ -2,7 +2,6 @@ package locate
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/impact-eintr/enet"
 	"github.com/impact-eintr/eoss/mq/esqv1"
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
+	"github.com/impact-eintr/esq"
 )
 
 var objects = make(map[string]int)
@@ -64,8 +64,8 @@ func StartLocate() {
 		defer conn.Close()
 
 		//发封包message消息 只写一次
-		dp := enet.GetDataPack()
-		msg, _ := dp.Pack(enet.NewMsgPackage(10, []byte(esqv1.TOPIC_filereq+"\t"+"谁想要要色图")))
+		msg := esq.PackageProtocol(0, "SUB", esqv1.TOPIC_filereq, os.Getenv("LISTEN_ADDRESS"),
+			"有人要戒色？")
 		_, err = conn.Write(msg)
 		if err != nil {
 			fmt.Println("write error err ", err)
@@ -74,59 +74,37 @@ func StartLocate() {
 
 		// 不停地读
 		for {
-			//先读出流中的head部分
-			headData := make([]byte, dp.GetHeadLen())
-			_, err = io.ReadFull(conn, headData) //ReadFull 会把msg填充满为止
+			data, err := esq.ReadOnce(conn)
 			if err != nil {
-				fmt.Println("read head error")
+				fmt.Println(err)
 				break
 			}
-			//将headData字节流 拆包到msg中
-			msgHead, err := dp.Unpack(headData)
-			if err != nil {
-				fmt.Println("server unpack err:", err)
-				return
-			}
+			// 向ApiNode通信
+			s := strings.Split(string(data), "\n") // apiIP:api:PORT\n文件名\n时间戳
+			apiAddr := s[0]
+			hash := s[1]
+			timeStamp := s[2]
 
-			if msgHead.GetDataLen() > 0 {
-				//msg 是有data数据的，需要再次读取data数据
-				msg := msgHead.(*enet.Message)
-				msg.Data = make([]byte, msg.GetDataLen())
-
-				//根据dataLen从io中读取字节流
-				_, err := io.ReadFull(conn, msg.Data)
+			// 先检查有没有文件
+			ID := Locate(hash) // 文件分片ID
+			if ID != -1 {
+				c, err := net.Dial("tcp4", apiAddr)
 				if err != nil {
-					fmt.Println("server unpack data err:", err)
+					fmt.Println("client start err ", err)
 					return
 				}
-
-				// 向ApiNode通信
-				s := strings.Split(string(msg.GetData()), "\n") // apiIP:api:PORT\n文件名\n时间戳
-				apiAddr := s[0]
-				hash := s[1]
-				timeStamp := s[2]
-
-				// 先检查有没有文件
-				ID := Locate(hash) // 文件分片ID
-				if ID != -1 {
-					c, err := net.Dial("tcp4", apiAddr)
-					if err != nil {
-						fmt.Println("client start err ", err)
-						return
-					}
-					// 发送的消息内容 ip:port\t文件名\n时间戳-ID
-					s := fmt.Sprintf("%s:%s\t%s\n%s-%d", os.Getenv("LISTEN_ADDRESS"),
-						os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
-					respMsg, _ := dp.Pack(enet.NewMsgPackage(20,
-						[]byte(s)))
-					_, err = c.Write(respMsg)
-					if err != nil {
-						fmt.Println("write error err ", err)
-						return
-					}
-					c.Close()
+				// 发送的消息内容 ip:port\t文件名\n时间戳-ID
+				s := fmt.Sprintf("%s:%s\t%s\n%s-%d", os.Getenv("LISTEN_ADDRESS"),
+					os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
+				dp := enet.GetDataPack()
+				respMsg, _ := dp.Pack(enet.NewMsgPackage(20,
+					[]byte(s)))
+				_, err = c.Write(respMsg)
+				if err != nil {
+					fmt.Println("write error err ", err)
+					return
 				}
-
+				c.Close()
 			}
 		}
 

@@ -32,8 +32,6 @@ func main() {
 	objGroup := eng.Group("/objects")
 	{
 		objGroup.GET("/*filehash", objects.Get)
-		//objGroup.PUT("/*filehash", objects.Put)
-		//objGroup.DELETE("/*filehash", objects.Delete)
 	}
 
 	tmpGroup := eng.Group("/temp")
