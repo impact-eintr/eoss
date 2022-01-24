@@ -94,7 +94,8 @@ func ListenHeartbeat() {
 			defer conn.Close()
 
 			//发封包message消息 只写一次
-			msg := esq.PackageProtocol(0, "SUB", esqv1.TOPIC_heartbeat, "1.1.0.1", "我经常帮助一些翘家的人")
+			msg := esq.PackageProtocol(0, "SUB", esqv1.TOPIC_heartbeat,
+				os.Getenv("LISTEN_ADDRESS"), "我经常帮助一些俏佳人")
 			_, err = conn.Write(msg)
 			if err != nil {
 				fmt.Println("write error err ", err)

@@ -11,6 +11,7 @@ import (
 	"github.com/impact-eintr/eoss/api/heartbeat"
 	"github.com/impact-eintr/eoss/api/locate"
 	"github.com/impact-eintr/eoss/api/objects"
+	"github.com/impact-eintr/eoss/api/search"
 	"github.com/impact-eintr/eoss/cluster"
 	"github.com/impact-eintr/eoss/errmsg"
 	"github.com/impact-eintr/eoss/mq/esqv1"
@@ -39,7 +40,7 @@ func main() {
 		log.Printf("[API_SERVER_CLUSTERS] 集群节点@%s > %v\n", node.Addr(), node.Members())
 	})
 	{
-		objGroup.POST("/:name", objects.Post)
+		objGroup.POST("/:name")
 		objGroup.PUT("/:name", func(ctx *gin.Context) {
 			// PUT请求 准备占用上行带宽
 			// 需要在 Header 中提供一个时间戳 TODO 这个时间戳之后可以加密 提高安全性
@@ -62,6 +63,13 @@ func main() {
 	}
 
 	eng.Group("/locate", locate.Get)
+
+	searchGroup := eng.Group("search")
+	{
+		searchGroup.GET("/folder/:name")
+		searchGroup.GET("/objects", search.GetLastestVersions)
+		searchGroup.GET("/object/:name", search.GetAllVersions)
+	}
 
 	eng.Run(":" + os.Getenv("LISTEN_PORT"))
 }

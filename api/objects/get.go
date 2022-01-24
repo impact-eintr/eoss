@@ -35,7 +35,7 @@ func Get(c *gin.Context) {
 	}
 
 	if meta.Hash == "" {
-		errmsg.ErrLog(c, http.StatusNotFound, e.Error())
+		errmsg.ErrLog(c, http.StatusNotFound, "File not found")
 		return
 	}
 

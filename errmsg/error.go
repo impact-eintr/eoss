@@ -25,14 +25,9 @@ func ErrLog(ctx *gin.Context, code int, msg string) {
 	ctx.JSON(http.StatusOK, errMsg)
 }
 
-// code 为 DataNode 业务逻辑错误码 http响应统一返回200
+// code 为 DataNode 业务逻辑错误码 响应返回原生值
 func ErrRawLog(ctx *gin.Context, code int, msg string) {
-	errMsg := ErrMsg{
-		Code: code,
-		Msg:  msg,
-	}
-
 	log.Println(msg)
 
-	ctx.JSON(code, errMsg)
+	ctx.JSON(code, msg)
 }

@@ -8,5 +8,5 @@ import (
 )
 
 func Post(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, es.Test())
+	ctx.JSON(http.StatusOK, es.LatestMetadatas())
 }

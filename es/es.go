@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/olivere/elastic"
@@ -60,6 +61,7 @@ func PutMetadata(name string, version int, size int64, hash string) error {
 
 func GetMetadata(name string, version int) (Metadata, error) {
 	if version == 0 {
+		return SearchLatestVersion(name)
 	}
 	return getMetadata(name, version)
 }
@@ -117,7 +119,7 @@ func AddVersion(name, hash string, size int64) error {
 }
 
 func SearchAllVersions(name string, from, size int) ([]Metadata, error) {
-	url := fmt.Sprintf("http://%s/metadata/_search?sort=name,version&from=%d&size=%d",
+	url := fmt.Sprintf("http://%s/metadata/_search?from=%d&size=%d",
 		os.Getenv("ES_SERVER"), from, size)
 	if name != "" {
 		url += "&q=name:" + name
@@ -133,6 +135,9 @@ func SearchAllVersions(name string, from, size int) ([]Metadata, error) {
 	for i := range sr.Hits.Hits {
 		metas = append(metas, sr.Hits.Hits[i].Source)
 	}
+	sort.Slice(metas, func(i, j int) bool {
+		return metas[i].Version > metas[j].Version
+	})
 	return metas, nil
 }
 
@@ -217,7 +222,110 @@ func SearchHashSize(hash string) (size int64, e error) {
 	return
 }
 
+// 获取最新数据
+func LatestMetadatas() (result []Metadata) {
+	ctx := context.Background()
+
+	client, err := elastic.NewClient(
+		elastic.SetURL("http://"+os.Getenv("ES_SERVER")),
+		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
+	)
+	if err != nil {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+	_, code, err := client.Ping("http://" + os.Getenv("ES_SERVER")).Do(ctx)
+	if err != nil || code != http.StatusOK {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+
+	// 新建一个游标 获取全量数据的数量
+	res, _ := client.Scroll("metadata").
+		Scroll("10m").
+		Do(ctx)
+	size := int(res.TotalHits())
+
+	// 查询条件
+	q := elastic.NewRangeQuery("version").Gte(1)
+
+	res, err = client.Search().Index("metadata").Type("objects").Query(q).From(0).Size(size).Do(ctx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	m := make(map[string]Metadata)
+
+	//从搜索结果中取数据的方法
+	for _, item := range res.Each(reflect.TypeOf(Metadata{})) {
+		if t, ok := item.(Metadata); ok {
+			if _, ok := m[t.Name]; ok {
+				if m[t.Name].Version < t.Version {
+					m[t.Name] = t
+				}
+			} else {
+				m[t.Name] = t
+			}
+		}
+	}
+
+	for k := range m {
+		result = append(result, m[k])
+	}
+
+	return
+}
+
 func Test() (result []Metadata) {
+	ctx := context.Background()
+
+	client, err := elastic.NewClient(
+		elastic.SetURL("http://"+os.Getenv("ES_SERVER")),
+		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
+	)
+	if err != nil {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+	_, code, err := client.Ping("http://" + os.Getenv("ES_SERVER")).Do(ctx)
+	if err != nil || code != http.StatusOK {
+		// Handle error
+		log.Println("ES initial failed!", err)
+		panic(err)
+	}
+
+	// 新建一个游标 获取全量数据的数量
+	res, _ := client.Scroll("metadata").
+		Scroll("10m").
+		Do(ctx)
+	size := int(res.TotalHits())
+
+	// 查询条件
+	q := elastic.NewRangeQuery("version").Gte(1)
+
+	res, err = client.Search().Index("metadata").Type("objects").Query(q).From(0).Size(size).Do(ctx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	//从搜索结果中取数据的方法
+	for _, item := range res.Each(reflect.TypeOf(Metadata{})) {
+		if t, ok := item.(Metadata); ok {
+			fmt.Println(t)
+			result = append(result, t)
+		}
+	}
+
+	return
+}
+
+func SearchTest() (result []Metadata) {
 	ctx := context.Background()
 
 	client, err := elastic.NewClient(
