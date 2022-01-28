@@ -1,7 +1,7 @@
 # eoss
 一个分布式OSS（对象存储）
 
-![img](img/EOSS 架构设计.png)
+![img](img/EOSS架构设计.png)
 
 # TODO
 
