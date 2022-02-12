@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	TOPIC_heartbeat = "心跳"
-	TOPIC_filereq   = "文件定位请求"
+	TOPIC_heartbeat = "Ping..."
+	TOPIC_filereq   = "File..."
 )
 
 var (
@@ -23,10 +23,13 @@ type LocateRouter struct {
 }
 
 func (this *LocateRouter) Handle(req iface.IRequest) {
-	// 收到的消息内容 ip:port\t文件名\n时间戳-ID
+	// 收到的消息内容 ip:port\t文件名-时间戳-ID
 	addr := strings.Split(string(req.GetData()), "\t")[0]
-	mapKey := strings.Split(strings.Split(string(req.GetData()), "\t")[1], "-")[0]
-	id := strings.Split(string(req.GetData()), "-")[1]
+	name := strings.Split(strings.Split(string(req.GetData()), "\t")[1], "-")[0]
+	stamp := strings.Split(strings.Split(string(req.GetData()), "\t")[1], "-")[1]
+	id := strings.Split(string(req.GetData()), "-")[2]
+	mapKey := name + "-" + stamp
+
 	Locker.Lock()
 	if ch, ok := FileTimeMap[mapKey]; ok {
 		ch <- addr + "-" + id // TODO 这个channel关闭了怎么办

@@ -8,12 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/impact-eintr/enet"
 	"github.com/impact-eintr/eoss/mq/esqv1"
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
-	"github.com/impact-eintr/esq"
 )
 
 var objects = make(map[string]int)
@@ -58,32 +56,19 @@ func StartLocate() {
 		}
 	} else if os.Getenv("ESQ_SERVER") != "" {
 		for {
-			conn, err := net.Dial("tcp4", os.Getenv("ESQ_SERVER")) // ESQ_SERVER
-			if err != nil {
-				fmt.Println("client start err ", err)
-				time.Sleep(time.Second)
-				continue
-			}
-			defer conn.Close()
+			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
+			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
+			cli.Config(esqv1.TOPIC_filereq, 1, 2, 5, 3)
+			cli.Declare(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
 
-			//发封包message消息 只写一次
-			msg := esq.PackageProtocol(0, "SUB", esqv1.TOPIC_filereq, os.Getenv("LISTEN_ADDRESS"),
-				"有人要戒色？")
-			_, err = conn.Write(msg)
-			if err != nil {
-				fmt.Println("write error err ", err)
-				return
-			}
-
-			// 不停地读
+			// 发送消息
 			for {
-				data, err := esq.ReadOnce(conn)
+				msg, err := cli.Pop(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
 				if err != nil {
-					fmt.Println(err)
 					break
 				}
 				// 向ApiNode通信
-				s := strings.Split(string(data), "\n") // apiIP:api:PORT\n文件名\n时间戳
+				s := strings.Split(msg.Body, "-") // ip:port-文件名-时间戳
 				apiAddr := s[0]
 				hash := s[1]
 				timeStamp := s[2]
@@ -96,8 +81,8 @@ func StartLocate() {
 						fmt.Println("client start err ", err)
 						return
 					}
-					// 发送的消息内容 ip:port\t文件名\n时间戳-ID
-					s := fmt.Sprintf("%s:%s\t%s\n%s-%d", os.Getenv("LISTEN_ADDRESS"),
+					// 发送的消息内容 ip:port\t文件名-时间戳-ID
+					s := fmt.Sprintf("%s:%s\t%s-%s-%d", os.Getenv("LISTEN_ADDRESS"),
 						os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
 					dp := enet.GetDataPack()
 					respMsg, _ := dp.Pack(enet.NewMsgPackage(20,

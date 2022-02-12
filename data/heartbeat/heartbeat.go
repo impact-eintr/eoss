@@ -1,14 +1,11 @@
 package heartbeat
 
 import (
-	"fmt"
-	"net"
 	"os"
 	"time"
 
 	"github.com/impact-eintr/eoss/mq/esqv1"
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
-	"github.com/impact-eintr/esq"
 )
 
 func StartHeartbeat() {
@@ -23,23 +20,12 @@ func StartHeartbeat() {
 
 	} else if os.Getenv("ESQ_SERVER") != "" {
 		for {
-			conn, err := net.Dial("tcp4", os.Getenv("ESQ_SERVER")) // ESQ_SERVER
-			if err != nil {
-				fmt.Println("client start err ", err)
-				time.Sleep(time.Second)
-				continue
-			}
-			defer conn.Close()
-
+			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
+			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
+			cli.Config("heartbeat", 1, 2, 5, 3)
+			// 发送消息
 			for {
-				msg := esq.PackageProtocol(0, "PUB", esqv1.TOPIC_heartbeat, os.Getenv("LISTEN_ADDRESS"),
-					os.Getenv("LISTEN_ADDRESS")+":"+os.Getenv("LISTEN_PORT"))
-				//发封包message消息
-				_, err = conn.Write(msg)
-				if err != nil {
-					fmt.Println("write error err ", err)
-					return
-				}
+				cli.Push(os.Getenv("LISTEN_ADDRESS")+":"+os.Getenv("LISTEN_PORT"), esqv1.TOPIC_heartbeat, "client*", 0)
 				time.Sleep(5 * time.Second)
 			}
 		}

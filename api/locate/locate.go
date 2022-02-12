@@ -3,7 +3,6 @@ package locate
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,7 +16,6 @@ import (
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
 	"github.com/impact-eintr/eoss/rs"
 	"github.com/impact-eintr/eoss/types"
-	"github.com/impact-eintr/esq"
 )
 
 func Get(ctx *gin.Context) {
@@ -55,26 +53,15 @@ func Locate(name string) (locateInfo map[int]string) {
 		return
 
 	} else if os.Getenv("ESQ_SERVER") != "" {
-		// esqv1
-		conn, err := net.Dial("tcp4", os.Getenv("ESQ_SERVER")) // ESQ_SERVER
-		if err != nil {
-			fmt.Println("client start err ", err)
-			return
-		}
-		defer conn.Close()
+		//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
+		cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
+		cli.Config(esqv1.TOPIC_filereq, 1, 2, 5, 3)
 
-		mapKey := fmt.Sprintf("%s\n%d", name, time.Now().Unix())
+		mapKey := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 
-		// 向dataNode集群广播消息
+		// 向dataNode集群广播消息:  ip:port-文件名-时间戳
 		localServer := fmt.Sprintf("%s:%d", os.Getenv("LISTEN_ADDRESS"), enet.GlobalObject.Port)
-		// 向dataNode传递的消息 ip:port\n文件名\n时间戳
-		msg := fmt.Sprintf("%s\n%s", localServer, mapKey)
-		data := esq.PackageProtocol(0, "PUB", esqv1.TOPIC_filereq, os.Getenv("LISTEN_ADDRESS"), msg)
-		_, err = conn.Write(data)
-		if err != nil {
-			fmt.Println("write error err ", err)
-			return
-		}
+		cli.Push(fmt.Sprintf("%s-%s", localServer, mapKey), esqv1.TOPIC_filereq, "client*", 0)
 
 		// 等待定位结果
 		// 注册消息
@@ -91,7 +78,7 @@ func Locate(name string) (locateInfo map[int]string) {
 			esqv1.Locker.Unlock()
 		}()
 
-		// 取 ALL_SHARDS 次
+		// 取够 ALL_SHARDS 次 或者 超时
 		timer := time.NewTimer(1 * time.Second)
 		for i := 0; i < rs.ALL_SHARDS; i++ {
 			select {
@@ -105,9 +92,7 @@ func Locate(name string) (locateInfo map[int]string) {
 				return
 			}
 		}
-		// 取够 ALL_SHARDS 次 或者 超时
 		return
-
 	} else {
 		return
 	}

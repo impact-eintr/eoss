@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/impact-eintr/eoss/api/heartbeat"
 	"github.com/impact-eintr/eoss/api/locate"
+	"github.com/impact-eintr/eoss/api/metadata"
 	"github.com/impact-eintr/eoss/api/objects"
-	"github.com/impact-eintr/eoss/api/search"
 	"github.com/impact-eintr/eoss/cluster"
 	"github.com/impact-eintr/eoss/errmsg"
 	"github.com/impact-eintr/eoss/mq/esqv1"
@@ -64,11 +64,20 @@ func main() {
 
 	eng.Group("/locate", locate.Get)
 
-	searchGroup := eng.Group("search")
+	metaGroup := eng.Group("meta")
 	{
-		searchGroup.GET("/folder/:name")
-		searchGroup.GET("/objects", search.GetLastestVersions)
-		searchGroup.GET("/object/:name", search.GetAllVersions)
+		searchGroup := metaGroup.Group("search")
+		{
+			searchGroup.GET("/objects", metadata.GetLastestVersions)
+			searchGroup.GET("/object/:name", metadata.GetAllVersions)
+		}
+		thumbnailGroup := metaGroup.Group("thumbnail")
+		{
+			thumbnailGroup.PUT("/:name", metadata.PutThumbnail)
+			thumbnailGroup.GET("/:name", metadata.GetThumbnail)
+			thumbnailGroup.DELETE("/:name", metadata.DelThumbnail)
+		}
+
 	}
 
 	eng.Run(":" + os.Getenv("LISTEN_PORT"))

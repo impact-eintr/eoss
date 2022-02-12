@@ -2,8 +2,8 @@ package heartbeat
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
-	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/impact-eintr/eoss/mq/esqv1"
 	"github.com/impact-eintr/eoss/mq/rabbitmq"
-	"github.com/impact-eintr/esq"
 )
 
 var dataServers = make(map[string]time.Time)
@@ -85,33 +84,19 @@ func ListenHeartbeat() {
 
 	} else if os.Getenv("ESQ_SERVER") != "" {
 		for {
-			conn, err := net.Dial("tcp4", os.Getenv("ESQ_SERVER")) // ESQ_SERVER
-			if err != nil {
-				fmt.Println("client start err ", err)
-				time.Sleep(time.Second)
-				continue
-			}
-			defer conn.Close()
+			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
+			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
+			cli.Config(esqv1.TOPIC_heartbeat, 1, 2, 5, 3) // 配置为自动回复 广播 5s失效 重试3次
+			cli.Declare(esqv1.TOPIC_heartbeat, "client"+os.Getenv("LISTEN_ADDRESS"))
 
-			//发封包message消息 只写一次
-			msg := esq.PackageProtocol(0, "SUB", esqv1.TOPIC_heartbeat,
-				os.Getenv("LISTEN_ADDRESS"), "我经常帮助一些俏佳人")
-			_, err = conn.Write(msg)
-			if err != nil {
-				fmt.Println("write error err ", err)
-				continue
-			}
-
-			// 不停地读
 			for {
-				data, err := esq.ReadOnce(conn)
+				msg, err := cli.Pop(esqv1.TOPIC_heartbeat, "client"+os.Getenv("LISTEN_ADDRESS"))
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					break
 				}
-
 				mutex.Lock()
-				dataServers[string(data)] = time.Now()
+				dataServers[msg.Body] = time.Now()
 				mutex.Unlock()
 			}
 		}
