@@ -18,5 +18,6 @@
     - 解析目录的功能(可选)
 3. 断点续传功能
 4. 支持目录(有难度，有必要吗)
-5. 一个分布式的消息队列(借鉴nsq/nats/gmq)
+5. ~~一个分布式的消息队列(借鉴nsq/nats/gmq)~~
+    - 基于etcd(后续用raftd尝试代替)的分布式消息队列 [esq](https://github.com/impact-eintr/esq) 绝赞开发中 : )
 
