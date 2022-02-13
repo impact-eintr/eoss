@@ -3,6 +3,7 @@ package rs
 import (
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/impact-eintr/eoss/objectstream"
 )
@@ -12,6 +13,7 @@ type RSGetStream struct {
 }
 
 func NewRSGetStream(locateInfo map[int]string, dataServers []string, hash string, size int64) (*RSGetStream, error) {
+	log.Println(locateInfo, dataServers)
 	if len(locateInfo)+len(dataServers) != ALL_SHARDS {
 		return nil, fmt.Errorf("dataServers number mismatch")
 	}

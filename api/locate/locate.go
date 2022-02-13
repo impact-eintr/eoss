@@ -25,9 +25,7 @@ func Get(ctx *gin.Context) {
 		errmsg.ErrLog(ctx, http.StatusNotFound, "no any dataNode online")
 		return
 	}
-
 	ctx.JSON(http.StatusOK, address)
-
 }
 
 func Locate(name string) (locateInfo map[int]string) {
@@ -55,7 +53,7 @@ func Locate(name string) (locateInfo map[int]string) {
 	} else if os.Getenv("ESQ_SERVER") != "" {
 		//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
 		cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
-		cli.Config(esqv1.TOPIC_filereq, 1, 2, 5, 3)
+		cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
 
 		mapKey := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 

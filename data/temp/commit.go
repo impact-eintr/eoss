@@ -1,6 +1,7 @@
 package temp
 
 import (
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -25,6 +26,12 @@ func commitTempObject(datFile string, tempinfo *tempInfo) {
 	f, _ := os.Open(datFile)
 	d := url.PathEscape(utils.CalculateHash(f))
 	f.Close()
-	os.Rename(datFile, "/tmp/eoss/objects/"+tempinfo.Name+"."+d)
-	locate.Add(tempinfo.hash(), tempinfo.id())
+	// TODO 检测一下是否有重复文件
+	if locate.Locate(tempinfo.Name) != -1 {
+		os.Remove(datFile)
+		log.Println("有重复文件!!!")
+	} else {
+		os.Rename(datFile, "/tmp/eoss/objects/"+tempinfo.Name+"."+d)
+		locate.Add(tempinfo.hash(), tempinfo.id())
+	}
 }

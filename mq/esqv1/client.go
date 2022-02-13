@@ -103,7 +103,7 @@ func (c *Client) Push(msg, topic, routeKey string, delay int) error {
 	defer resp.Body.Close()
 	//b, err := ioutil.ReadAll(resp.Body)
 	//if err != nil {
-	//	return
+	//	return err
 	//}
 	//log.Println(string(b))
 	return nil
@@ -131,6 +131,7 @@ func (c *Client) Pop(topic, bindKey string) (*gnode.RespMsgData, error) {
 		if err != nil {
 			return nil, err
 		}
+		//log.Println(msg.Body)
 		return msg, nil
 	}
 	return nil, fmt.Errorf("no message")
@@ -145,7 +146,7 @@ func (c *Client) Declare(topic, bindKey string) error {
 	defer resp.Body.Close()
 	//b, err := ioutil.ReadAll(resp.Body)
 	//if err != nil {
-	//	return
+	//	return err
 	//}
 	//log.Println(string(b))
 	return nil
@@ -160,7 +161,7 @@ func (c *Client) Config(topic string, isAutoAck, mode, msgTTR, msgRetry int) err
 	defer resp.Body.Close()
 	//b, err := ioutil.ReadAll(resp.Body)
 	//if err != nil {
-	//	return
+	//	return err
 	//}
 	//log.Println(string(b))
 	return nil

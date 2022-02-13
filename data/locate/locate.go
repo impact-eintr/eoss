@@ -2,12 +2,14 @@ package locate
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/impact-eintr/enet"
 	"github.com/impact-eintr/eoss/mq/esqv1"
@@ -58,43 +60,54 @@ func StartLocate() {
 		for {
 			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
 			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
-			cli.Config(esqv1.TOPIC_filereq, 1, 2, 5, 3)
+			cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不要自动回复
 			cli.Declare(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
 
 			// 发送消息
-			for {
-				msg, err := cli.Pop(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
-				if err != nil {
-					break
-				}
-				// 向ApiNode通信
-				s := strings.Split(msg.Body, "-") // ip:port-文件名-时间戳
-				apiAddr := s[0]
-				hash := s[1]
-				timeStamp := s[2]
+			func() {
+				for {
+					msg, err := cli.Pop(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
+					if err != nil {
+						defer time.Sleep(100 * time.Millisecond)
+						break
+					}
+					// 回复消息
+					err = cli.Ack(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"), msg.Id)
+					if err != nil {
+						defer time.Sleep(100 * time.Millisecond)
+						break
+					}
 
-				// 先检查有没有文件
-				ID := Locate(hash) // 文件分片ID
-				if ID != -1 {
-					c, err := net.Dial("tcp4", apiAddr)
-					if err != nil {
-						fmt.Println("client start err ", err)
-						return
+					// 向ApiNode通信
+					s := strings.Split(msg.Body, "-") // ip:port-文件名-时间戳
+					apiAddr := s[0]
+					hash := s[1]
+					timeStamp := s[2]
+
+					// 先检查有没有文件
+					ID := Locate(hash) // 文件分片ID
+					if ID != -1 {
+						log.Println("找到了文件", hash, ID)
+						c, err := net.Dial("tcp4", apiAddr)
+						if err != nil {
+							fmt.Println("client start err ", err)
+							return
+						}
+						// 发送的消息内容 ip:port\t文件名-时间戳-ID
+						s := fmt.Sprintf("%s:%s\t%s-%s-%d", os.Getenv("LISTEN_ADDRESS"),
+							os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
+						dp := enet.GetDataPack()
+						respMsg, _ := dp.Pack(enet.NewMsgPackage(20,
+							[]byte(s)))
+						_, err = c.Write(respMsg)
+						if err != nil {
+							fmt.Println("write error err ", err)
+							return
+						}
+						c.Close()
 					}
-					// 发送的消息内容 ip:port\t文件名-时间戳-ID
-					s := fmt.Sprintf("%s:%s\t%s-%s-%d", os.Getenv("LISTEN_ADDRESS"),
-						os.Getenv("LISTEN_PORT"), hash, timeStamp, ID)
-					dp := enet.GetDataPack()
-					respMsg, _ := dp.Pack(enet.NewMsgPackage(20,
-						[]byte(s)))
-					_, err = c.Write(respMsg)
-					if err != nil {
-						fmt.Println("write error err ", err)
-						return
-					}
-					c.Close()
 				}
-			}
+			}()
 		}
 	} else {
 		panic("需要消息队列")

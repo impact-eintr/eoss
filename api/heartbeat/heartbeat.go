@@ -83,6 +83,7 @@ func ListenHeartbeat() {
 		}
 
 	} else if os.Getenv("ESQ_SERVER") != "" {
+		go removeExpiredDataServer()
 		for {
 			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
 			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
