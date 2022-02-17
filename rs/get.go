@@ -3,8 +3,9 @@ package rs
 import (
 	"fmt"
 	"io"
-	"log"
+	"io/ioutil"
 
+	"github.com/impact-eintr/eoss/errmsg"
 	"github.com/impact-eintr/eoss/objectstream"
 )
 
@@ -13,7 +14,6 @@ type RSGetStream struct {
 }
 
 func NewRSGetStream(locateInfo map[int]string, dataServers []string, hash string, size int64) (*RSGetStream, error) {
-	log.Println(locateInfo, dataServers)
 	if len(locateInfo)+len(dataServers) != ALL_SHARDS {
 		return nil, fmt.Errorf("dataServers number mismatch")
 	}
@@ -40,7 +40,11 @@ func NewRSGetStream(locateInfo map[int]string, dataServers []string, hash string
 	for i := range readers {
 		if readers[i] == nil {
 			writers[i], e = objectstream.NewTempPutStream(locateInfo[i], fmt.Sprintf("%s.%d", hash, i), perShard)
-			if e != nil {
+			switch e {
+			case errmsg.ErrExpireMessage:
+				writers[i] = ioutil.Discard
+			case nil:
+			default:
 				return nil, e
 			}
 		}
@@ -52,7 +56,7 @@ func NewRSGetStream(locateInfo map[int]string, dataServers []string, hash string
 
 func (s *RSGetStream) Close() {
 	for i := range s.writers {
-		if s.writers[i] != nil {
+		if s.writers[i] != nil && s.writers[i] != ioutil.Discard {
 			s.writers[i].(*objectstream.TempPutStream).Commit(true)
 		}
 	}

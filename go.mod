@@ -7,8 +7,8 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/memberlist v0.3.1
 	github.com/impact-eintr/enet v1.4.1
-	github.com/impact-eintr/esq v0.5.3
-	github.com/impact-eintr/raftd v0.0.2
+	github.com/impact-eintr/esq v0.6.1
+	github.com/impact-eintr/raftd v0.1.0
 	github.com/kardianos/service v1.2.1
 	github.com/klauspost/reedsolomon v1.9.16
 	github.com/olivere/elastic v6.2.37+incompatible

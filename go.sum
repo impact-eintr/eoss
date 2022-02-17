@@ -126,10 +126,10 @@ github.com/impact-eintr/bolt v0.0.1 h1:vRJioMj4w2SUXjWCg5mf96CSwSmYH2VaPM5LmcAmQ
 github.com/impact-eintr/bolt v0.0.1/go.mod h1:fdMJ6id1p5XJgUq+OuY8sivkOpRhxYw5IXBkMukV5LE=
 github.com/impact-eintr/enet v1.4.1 h1:qrMVk41YNCVCFzREDXoteWqwbHq+gOPY/sn/u1SkBw4=
 github.com/impact-eintr/enet v1.4.1/go.mod h1:rLB8JOzFiR7xAHdhrt60/xufRO/O2E/zRliAMVuLRtM=
-github.com/impact-eintr/esq v0.5.3 h1:MYOL73lj8vUid0y1fEzuX8glM0gA4zAI86P8DVo7A40=
-github.com/impact-eintr/esq v0.5.3/go.mod h1:gzeKJqIGtKWFTt90XYbKd1fBSPM88Eb95wSsQuKO+gc=
-github.com/impact-eintr/raftd v0.0.2 h1:eEafkE4o1BpTUCXc+Ox64fvHAMSLHVFGQ71LclI6EJk=
-github.com/impact-eintr/raftd v0.0.2/go.mod h1:1eZ7+GFyuBtr6wGaKdP0+8dE5Pyk/NkcEk2CeDqqsP8=
+github.com/impact-eintr/esq v0.6.1 h1:YlQtReKJCzv1iuJLBUa4bsqh3MyLKvQdYJ23AeQ9NXc=
+github.com/impact-eintr/esq v0.6.1/go.mod h1:gzeKJqIGtKWFTt90XYbKd1fBSPM88Eb95wSsQuKO+gc=
+github.com/impact-eintr/raftd v0.1.0 h1:9wnjzIyDulJATtnAqCy6Yo93a3lWy+crPkLbje/dkLo=
+github.com/impact-eintr/raftd v0.1.0/go.mod h1:1eZ7+GFyuBtr6wGaKdP0+8dE5Pyk/NkcEk2CeDqqsP8=
 github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=

@@ -2,7 +2,6 @@ package locate
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,6 +19,7 @@ var objects = make(map[string]int)
 var mutex sync.Mutex
 
 func Locate(hash string) int {
+	hash = strings.Split(hash, ".")[0]
 	mutex.Lock()
 	id, ok := objects[hash]
 	mutex.Unlock()
@@ -60,7 +60,7 @@ func StartLocate() {
 		for {
 			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
 			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
-			cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不要自动回复
+			cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
 			cli.Declare(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
 
 			// 发送消息
@@ -87,7 +87,6 @@ func StartLocate() {
 					// 先检查有没有文件
 					ID := Locate(hash) // 文件分片ID
 					if ID != -1 {
-						log.Println("找到了文件", hash, ID)
 						c, err := net.Dial("tcp4", apiAddr)
 						if err != nil {
 							fmt.Println("client start err ", err)

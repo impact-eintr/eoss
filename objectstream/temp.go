@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/impact-eintr/eoss/errmsg"
 )
 
 type TempPutStream struct {
@@ -23,6 +25,11 @@ func NewTempPutStream(server, object string, size int64) (*TempPutStream, error)
 	if e != nil {
 		return nil, e
 	}
+
+	if response.StatusCode == http.StatusBadRequest {
+		return nil, errmsg.ErrExpireMessage
+	}
+
 	uuid, e := ioutil.ReadAll(response.Body)
 	if e != nil {
 		return nil, e
@@ -45,6 +52,7 @@ func (w *TempPutStream) Write(p []byte) (n int, err error) {
 	}
 	return len(p), nil
 }
+
 func (w *TempPutStream) Commit(good bool) {
 	method := "DELETE"
 	if good {

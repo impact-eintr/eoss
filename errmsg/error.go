@@ -2,6 +2,7 @@
 package errmsg
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -12,6 +13,10 @@ type ErrMsg struct {
 	Code int
 	Msg  string
 }
+
+var (
+	ErrExpireMessage = errors.New("消息有延迟")
+)
 
 // code 为 ApiNode 业务逻辑错误码 http响应统一返回200
 func ErrLog(ctx *gin.Context, code int, msg string) {
