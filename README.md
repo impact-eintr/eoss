@@ -1,12 +1,13 @@
 # eoss
 一个分布式OSS（对象存储）
 
-![img](img/EOSS架构设计.png)
+![img](img/EOSS架构设计.jpg)
 
 # TODO
 
 1. ~~数据的部分元数据需要另外的存储机制~~
     - 基于raft和bolt的分布式KV数据库 [raftd](https://github.com/impact-eintr/raftd) 绝赞开发中 : )
+    - 关于raftd的使用： 向raftd请求esq集群信息，解析后向esq通信，疑问？：每次向esq通信都需要先获取集群信息吗 问一下有经验的人 几种方案大致思路是什么 
 2. 一个客户端 
     - 具有文件压缩/解压的功能
     - 具有制作预览的功能
@@ -20,4 +21,4 @@
 4. 支持目录(有难度，有必要吗)
 5. ~~一个分布式的消息队列(借鉴nsq/nats/gmq)~~
     - 基于etcd(后续用raftd尝试代替)的分布式消息队列 [esq](https://github.com/impact-eintr/esq) 绝赞开发中 : )
-
+    - 这是一个高可用集群,如何保证消息的可靠
