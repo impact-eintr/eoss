@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 
 	"github.com/impact-eintr/raftd/httpd"
@@ -40,8 +41,6 @@ func init() {
 	}
 }
 
-// TODO 一个租约系统 为 esq 提供服务发现
-
 func main() {
 	// 解析命令行参数
 	flag.Parse()
@@ -61,6 +60,12 @@ func main() {
 	s := store.New(bindID)
 	s.RaftDir = raftDir
 	s.RaftBind = raftAddr
+
+	s.DBDir = path.Join(raftDir, "kv")
+	s.DB2Dir = path.Join(raftDir, "lease")
+	os.MkdirAll(s.DBDir, 0700)
+	os.MkdirAll(s.DB2Dir, 0700)
+
 	if err := s.Open(joinAddr == "", nodeID); err != nil {
 		log.Fatalf("failed to join node at %s:%s", joinAddr, err.Error())
 	}
@@ -85,6 +90,8 @@ func main() {
 		log.Fatalf("failed to SetMeta at %s: %s", nodeID, err.Error())
 	}
 
+	s.RecoverStatus()
+
 	h := httpd.New(httpAddr, s)
 	if err := h.Start(); err != nil {
 		log.Fatalf("failed to start HTTP service: %s", err.Error())
@@ -95,8 +102,8 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
+	s.Close()
 	log.Println("raftd exiting")
-
 }
 
 func join(joinAddr, httpAddr, raftAddr, nodeID string) error {

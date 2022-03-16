@@ -15,7 +15,7 @@
 # vendor/
 cmd/apiserver/apiserver
 cmd/dataserver/dataserver
-cmd/esq/esq
+cmd/esq/esqd
 cmd/esq/data*
 cmd/raftd/raftd
 

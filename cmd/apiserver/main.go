@@ -13,6 +13,7 @@ import (
 	"github.com/impact-eintr/eoss/api/locate"
 	"github.com/impact-eintr/eoss/api/metadata"
 	"github.com/impact-eintr/eoss/api/objects"
+	"github.com/impact-eintr/eoss/api/temp"
 	"github.com/impact-eintr/eoss/cluster"
 	"github.com/impact-eintr/eoss/mq/esqv1"
 )
@@ -37,12 +38,10 @@ func main() {
 
 	objGroup := eng.Group("/objects")
 	objGroup.Use(func(ctx *gin.Context) {
-		// TODO RBAC
 		log.SetPrefix(fmt.Sprintf("%s@[API_SERVER] > ", node.Addr()))
-		//log.Printf("[API_SERVER_CLUSTERS] 集群 %v\n", node.Members())
 	})
 	{
-		objGroup.POST("/:name")
+		objGroup.POST("/:name", objects.Post)
 		objGroup.PUT("/:name", func(ctx *gin.Context) {
 			// PUT请求 准备占用上行带宽
 			// 需要在 Header 中提供一个时间戳
@@ -63,6 +62,12 @@ func main() {
 		}, objects.Put)
 		objGroup.GET("/:name", objects.Get)
 		objGroup.DELETE("/:name", objects.Delete)
+	}
+
+	tempGroup := eng.Group("/temp")
+	{
+		tempGroup.PUT("/:token", temp.Put)
+		tempGroup.HEAD("/:token", temp.Head)
 	}
 
 	eng.Group("/locate", locate.Get)

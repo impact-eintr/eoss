@@ -47,12 +47,6 @@ func (p *program) Stop(s service.Service) error {
 
 }
 
-// TODO 如果启动集群模式 对于当前场景而言 必须使用 权重模式 来投送消息
-//      esq1:1 esq2:2 esq3:3 默认会往最新上线的节点发送消息
-//      这样所有 apiServer dataServer 的信息就能同步到一个节点上处理
-//      如果这个esq节点挂了 就从存活的esq中找最新的一个发送消息
-//      这样 现在的esq集群是一个 会丢失消息 的 高可用集群
-
 func main() {
 	svcConfig := &service.Config{
 		Name:        "esq-node",

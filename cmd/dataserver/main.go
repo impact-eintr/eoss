@@ -40,6 +40,8 @@ func main() {
 		tmpGroup.PUT("/:uuid", temp.Put)
 		tmpGroup.PATCH("/:uuid", temp.Patch)
 		tmpGroup.DELETE("/:uuid", temp.Del)
+		tmpGroup.GET("/:uuid", temp.Get)
+		tmpGroup.HEAD("/:uuid", temp.Head)
 	}
 
 	eng.Run(":" + os.Getenv("LISTEN_PORT"))
