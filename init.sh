@@ -1,14 +1,17 @@
 #!/usr/bin/env cat
 # 在终端里设置对应的环境变量
 
-# esw 服务的地址 host:port
+# es 服务的地址 host:port
 export ES_SERVER=
 
-# rabbitmq服务的地址 host:port
-export RABBITMQ_SERVER=
+# raftd 服务的地址 host:port
+export RAFTD_SERVER=
 
 # esq服务的地址 host:port
 export ESQ_SERVER=
+
+# rabbitmq服务的地址 host:port
+export RABBITMQ_SERVER=
 
 # 当前服务在集群中的位置 host + port
 export LISTEN_ADDRESS=
