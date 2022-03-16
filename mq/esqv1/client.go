@@ -1,7 +1,6 @@
 package esqv1
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +9,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/impact-eintr/esq/gnode"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -178,38 +175,43 @@ func (c *Client) Ack(topic, bindKey, id string) error {
 	return nil
 }
 
-var clients []*Client
-
 func InitClients(endpoints string) ([]*Client, error) {
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("endpoints is empty.")
 	}
 
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   strings.Split(endpoints, ","),
-		DialTimeout: 3 * time.Second,
-	})
+	var r http.Request
+	r.ParseForm()
+	r.Form.Add("prefix", "/esq/node")
+	bodystr := strings.TrimSpace(r.Form.Encode())
+
+	request, err := http.NewRequest("POST", fmt.Sprintf("http://"+endpoints+"/lease/kv/%s", "nodeinfo"),
+		strings.NewReader(bodystr))
 	if err != nil {
-		return nil, fmt.Errorf("can't new etcd client.")
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Connection", "Keep-Alive")
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	infobyte, _ := ioutil.ReadAll(resp.Body) // 读出来的是一个数组 所以至少有 [] 长度为2
+	if len(infobyte) < 3 {
+		return nil, fmt.Errorf("暂时没有数据")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	resp, err := cli.Get(ctx, "/esq/node", clientv3.WithPrefix())
-	cancel()
+	var clients []*Client
+	infos := make([]map[string]string, 0)
+	err = json.Unmarshal(infobyte, &infos)
 	if err != nil {
 		return nil, err
 	}
 
-	var clients []*Client
-	node := make(map[string]string)
-	for _, ev := range resp.Kvs {
-		fmt.Printf("%s => %s\n", ev.Key, ev.Value)
-		if err := json.Unmarshal(ev.Value, &node); err != nil {
-			return nil, err
-		}
-
-		httpAddr := node["http_addr"]
-		weight, _ := strconv.Atoi(node["weight"])
+	for _, info := range infos {
+		httpAddr := info["http_addr"]
+		weight, _ := strconv.Atoi(info["weight"])
 		c := NewClient(httpAddr, weight)
 		clients = append(clients, c)
 	}
@@ -219,12 +221,9 @@ func InitClients(endpoints string) ([]*Client, error) {
 
 // 权重模式
 func getClientByMaxWeightMode(endpoints string) *Client {
-	if len(clients) == 0 {
-		var err error
-		clients, err = InitClients(endpoints)
-		if err != nil {
-			log.Fatalln(err)
-		}
+	clients, err := InitClients(endpoints)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	max := 0
@@ -236,7 +235,6 @@ func getClientByMaxWeightMode(endpoints string) *Client {
 
 	for _, c := range clients {
 		if c.weight == max {
-			log.Println(*c)
 			return c
 		}
 	}
@@ -245,13 +243,14 @@ func getClientByMaxWeightMode(endpoints string) *Client {
 }
 
 // 从集群中选择权重最大的队列 建立连接
-func ChooseQueueInCluster(endpoints string) *Client {
-	return getClientByMaxWeightMode(endpoints)
+// endpoint是raftd集群中某个节点的地址
+func ChooseQueueInCluster(endpoint string) *Client {
+	return getClientByMaxWeightMode(endpoint)
 }
 
-// 与队列建立连接
-func ChooseQueue(endpoints string) *Client {
+// 与队列建立连接 endpoint 是 esq节点的地址
+func ChooseQueue(endpoint string) *Client {
 	return &Client{
-		addr: endpoints,
+		addr: endpoint,
 	}
 }
