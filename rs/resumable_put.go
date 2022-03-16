@@ -52,7 +52,7 @@ func NewRSResumablePutStreamFromToken(token string) (*RSResumablePutStream, erro
 
 	writers := make([]io.Writer, ALL_SHARDS)
 	for i := range writers {
-		writers[i] = &objectstream.TempPutStream{t.Servers[i], t.Uuids[i]}
+		writers[i] = &objectstream.TempPutStream{Server: t.Servers[i], Uuid: t.Uuids[i]}
 	}
 	enc := NewEncoder(writers)
 	return &RSResumablePutStream{&RSPutStream{enc}, &t}, nil
