@@ -66,26 +66,25 @@ func GetDataServers() []string {
 }
 
 func ListenHeartbeat() {
-	if os.Getenv("RABBITMQ_SERVER") != "" {
-		q := rabbitmq.New(os.Getenv("RABBITMQ_SERVER"))
-		defer q.Close()
-		q.Bind("apiServers")
-		c := q.Consume()
+	if os.Getenv("RAFTD_SERVER") != "" {
 		go removeExpiredDataServer()
-		for msg := range c {
-			dataServer, e := strconv.Unquote(string(msg.Body))
-			if e != nil {
-				panic(e)
+		for {
+			cli := esqv1.ChooseQueueInCluster(os.Getenv("RAFTD_SERVER"))
+			cli.Config(esqv1.TOPIC_heartbeat, 1, 2, 5, 3) // 配置为自动回复 广播 5s失效 重试3次
+			cli.Declare(esqv1.TOPIC_heartbeat, "client"+os.Getenv("LISTEN_ADDRESS"))
+
+			msg, err := cli.Pop(esqv1.TOPIC_heartbeat, "client"+os.Getenv("LISTEN_ADDRESS"))
+			if err != nil {
+				log.Println(err)
+				break
 			}
 			mutex.Lock()
-			dataServers[dataServer] = time.Now()
+			dataServers[msg.Body] = time.Now()
 			mutex.Unlock()
 		}
-
 	} else if os.Getenv("ESQ_SERVER") != "" {
 		go removeExpiredDataServer()
 		for {
-			//cli := esqv1.ChooseQueueInCluster("127.0.0.1:2379")
 			cli := esqv1.ChooseQueue(os.Getenv("ESQ_SERVER"))
 			cli.Config(esqv1.TOPIC_heartbeat, 1, 2, 5, 3) // 配置为自动回复 广播 5s失效 重试3次
 			cli.Declare(esqv1.TOPIC_heartbeat, "client"+os.Getenv("LISTEN_ADDRESS"))
@@ -100,6 +99,21 @@ func ListenHeartbeat() {
 				dataServers[msg.Body] = time.Now()
 				mutex.Unlock()
 			}
+		}
+	} else if os.Getenv("RABBITMQ_SERVER") != "" {
+		q := rabbitmq.New(os.Getenv("RABBITMQ_SERVER"))
+		defer q.Close()
+		q.Bind("apiServers")
+		c := q.Consume()
+		go removeExpiredDataServer()
+		for msg := range c {
+			dataServer, e := strconv.Unquote(string(msg.Body))
+			if e != nil {
+				panic(e)
+			}
+			mutex.Lock()
+			dataServers[dataServer] = time.Now()
+			mutex.Unlock()
 		}
 	} else {
 		panic("需要消息队列!")
