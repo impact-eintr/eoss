@@ -1,8 +1,9 @@
 package rs
 
 import (
-	"github.com/klauspost/reedsolomon"
 	"io"
+
+	"github.com/klauspost/reedsolomon"
 )
 
 type encoder struct {
@@ -26,7 +27,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 		}
 		e.cache = append(e.cache, p[current:current+next]...)
 		if len(e.cache) == BLOCK_SIZE {
-			e.Flush()
+			e.Flush() // 每满足一个Block的大小就会发起一次Flush
 		}
 		current += next
 		length -= next
@@ -34,6 +35,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// Flush encoder的writes是TempPutStream 调用其Write 会发起一次 PATH 请求并向数据节点发送一个Block的数据
 func (e *encoder) Flush() {
 	if len(e.cache) == 0 {
 		return
