@@ -1,11 +1,13 @@
 package esqv1
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,11 +24,6 @@ const (
 var (
 	ErrTopicEmpty   = errors.New("topic is empty")
 	ErrTopicChannel = errors.New("channel is empty")
-)
-
-var (
-	cli1 = "clientNo.1"
-	cli2 = "clientNo.2"
 )
 
 var (
@@ -77,6 +74,24 @@ func NewClient(addr string, weight int) *Client {
 	}
 }
 
+func (c *Client) Push_(msg, topic, routeKey string, delay int) error {
+	conn, err := net.Dial("tcp4", "172.18.0.4:9502")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+
+	pkgMsg := make([]byte, 0)
+	lbuf := make([]byte, 4) // size
+	binary.BigEndian.PutUint32(lbuf, uint32(len([]byte(msg))))
+	header := fmt.Sprintf("pub %s %s %d\n", topic, routeKey, delay)
+	pkgMsg = append(pkgMsg, []byte(header)...)
+	pkgMsg = append(pkgMsg, lbuf...)
+	pkgMsg = append(pkgMsg, []byte(msg)...)
+	_, err = conn.Write(pkgMsg)
+	return err
+}
+
 func (c *Client) Push(msg, topic, routeKey string, delay int) error {
 	var r http.Request
 	r.ParseForm()
@@ -104,6 +119,37 @@ func (c *Client) Push(msg, topic, routeKey string, delay int) error {
 	//}
 	//log.Println(string(b))
 	return nil
+}
+
+// 2(respType) + 4(len) + len
+func (c *Client) Pop_(topic, bindKey string) (*gnode.RespMsgData, error) {
+	conn, err := net.Dial("tcp4", "172.18.0.4:9502")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+	// 先告诉esq需要消费
+	header := []byte(fmt.Sprintf("pop %s %s\n", topic, bindKey))
+	conn.Write(header)
+
+	header = header[:0]
+	conn.Read(header[:2])
+	msgType := binary.BigEndian.Uint16(header[:2])
+	if msgType != RESP_MESSAGE {
+		return nil, fmt.Errorf("invalid msg type:%d\n", msgType)
+	}
+
+	header = header[:0]
+	conn.Read(header[:4])
+	size := binary.BigEndian.Uint32(header[:4])
+	buf := make([]byte, size)
+	conn.Read(buf)
+
+	msg := &gnode.RespMsgData{}
+	if err := json.Unmarshal(buf, msg); err != nil {
+		return nil, err
+	}
+	return msg, nil
 }
 
 func (c *Client) Pop(topic, bindKey string) (*gnode.RespMsgData, error) {

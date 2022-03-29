@@ -37,7 +37,7 @@ func Locate(name string) (locateInfo map[int]string) {
 
 		// 向dataNode集群广播消息:  ip:port-文件名-时间戳
 		localServer := fmt.Sprintf("%s:%d", os.Getenv("LISTEN_ADDRESS"), enet.GlobalObject.Port)
-		cli.Push(fmt.Sprintf("%s-%s", localServer, mapKey), esqv1.TOPIC_filereq, "client*", 0)
+		cli.Push_(fmt.Sprintf("%s-%s", localServer, mapKey), esqv1.TOPIC_filereq, "client*", 0)
 
 		// 等待定位结果
 		// 注册消息
