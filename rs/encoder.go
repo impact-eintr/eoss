@@ -35,7 +35,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Flush encoder的writes是TempPutStream 调用其Write 会发起一次 PATH 请求并向数据节点发送一个Block的数据
+// Flush encoder的writes是TempPutStream 调用其Write 会发起一次 PATCH 请求并向数据节点发送一个Block的数据
 func (e *encoder) Flush() {
 	if len(e.cache) == 0 {
 		return
