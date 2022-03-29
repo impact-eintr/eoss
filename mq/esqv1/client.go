@@ -47,17 +47,18 @@ type MMsgPkg struct {
 }
 
 type Client struct {
-	addr   string
-	weight int
+	httpAddr string
+	tcpAddr  string
+	weight   int
 }
 
 // 初始化客户端,建立和注册中心节点连接
-func NewClient(addr string, weight int) *Client {
-	if len(addr) == 0 {
+func NewClient(httpAddr, tcpAddr string, weight int) *Client {
+	if len(httpAddr) == 0 || len(tcpAddr) == 0 {
 		log.Fatalln("address is empty")
 	}
 
-	resp, err := http.Get("http://" + addr + "/ping")
+	resp, err := http.Get("http://" + httpAddr + "/ping")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -69,8 +70,9 @@ func NewClient(addr string, weight int) *Client {
 	}
 
 	return &Client{
-		addr:   addr,
-		weight: weight,
+		httpAddr: httpAddr,
+		tcpAddr:  tcpAddr,
+		weight:   weight,
 	}
 }
 
@@ -99,7 +101,7 @@ func (c *Client) Push(msg, topic, routeKey string, delay int) error {
 	r.Form.Add("data", data)
 	bodystr := strings.TrimSpace(r.Form.Encode())
 
-	request, err := http.NewRequest("POST", fmt.Sprintf(pushBase, c.addr), strings.NewReader(bodystr))
+	request, err := http.NewRequest("POST", fmt.Sprintf(pushBase, c.httpAddr), strings.NewReader(bodystr))
 	if err != nil {
 		return err
 	}
@@ -135,9 +137,9 @@ func (c *Client) Pop_(topic, bindKey string) (*gnode.RespMsgData, error) {
 	header = header[:0]
 	conn.Read(header[:2])
 	msgType := binary.BigEndian.Uint16(header[:2])
-	if msgType != RESP_MESSAGE {
-		return nil, fmt.Errorf("invalid msg type:%d\n", msgType)
-	}
+	//if msgType != RESP_MESSAGE {
+	//	return nil, fmt.Errorf("invalid msg type:%d\n", msgType)
+	//}
 
 	header = header[:0]
 	conn.Read(header[:4])
@@ -145,6 +147,9 @@ func (c *Client) Pop_(topic, bindKey string) (*gnode.RespMsgData, error) {
 	buf := make([]byte, size)
 	conn.Read(buf)
 
+	if topic == TOPIC_fileresp {
+		log.Println("TEST!!!", msgType, string(buf))
+	}
 	msg := &gnode.RespMsgData{}
 	if err := json.Unmarshal(buf, msg); err != nil {
 		return nil, err
@@ -154,7 +159,7 @@ func (c *Client) Pop_(topic, bindKey string) (*gnode.RespMsgData, error) {
 
 func (c *Client) Pop(topic, bindKey string) (*gnode.RespMsgData, error) {
 	cli := &http.Client{}
-	resp, err := cli.Get(fmt.Sprintf(popBase, c.addr, topic, bindKey))
+	resp, err := cli.Get(fmt.Sprintf(popBase, c.httpAddr, topic, bindKey))
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +185,20 @@ func (c *Client) Pop(topic, bindKey string) (*gnode.RespMsgData, error) {
 	return nil, fmt.Errorf("no message")
 }
 
+func (c *Client) Declare_(topic, bindKey string) error {
+	conn, err := net.Dial("tcp4", "172.18.0.4:9502")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+	header := []byte(fmt.Sprintf("queue %s %s\n", topic, bindKey))
+	conn.Write(header)
+	return nil
+}
+
 func (c *Client) Declare(topic, bindKey string) error {
 	cli := &http.Client{}
-	resp, err := cli.Get(fmt.Sprintf(declereBase, c.addr, topic, bindKey))
+	resp, err := cli.Get(fmt.Sprintf(declereBase, c.httpAddr, topic, bindKey))
 	if err != nil {
 		return err
 	}
@@ -192,12 +208,24 @@ func (c *Client) Declare(topic, bindKey string) error {
 	//	return err
 	//}
 	//log.Println(string(b))
+	return nil
+}
+
+func (c *Client) Config_(topic string, isAutoAck, mode, msgTTR, msgRetry int) error {
+	conn, err := net.Dial("tcp4", "172.18.0.4:9502")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+
+	header := []byte(fmt.Sprintf("set %s %d %d %d %d\n", topic, isAutoAck, mode, msgTTR, msgRetry))
+	conn.Write(header)
 	return nil
 }
 
 func (c *Client) Config(topic string, isAutoAck, mode, msgTTR, msgRetry int) error {
 	cli := &http.Client{}
-	resp, err := cli.Get(fmt.Sprintf(configBase, c.addr, topic, isAutoAck, mode, msgTTR, msgRetry))
+	resp, err := cli.Get(fmt.Sprintf(configBase, c.httpAddr, topic, isAutoAck, mode, msgTTR, msgRetry))
 	if err != nil {
 		return err
 	}
@@ -210,9 +238,20 @@ func (c *Client) Config(topic string, isAutoAck, mode, msgTTR, msgRetry int) err
 	return nil
 }
 
+func (c *Client) Ack_(topic, bindKey, id string) error {
+	conn, err := net.Dial("tcp4", "172.18.0.4:9502")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer conn.Close()
+	header := []byte(fmt.Sprintf("ack %s %s %s\n", id, topic, bindKey))
+	conn.Write(header)
+	return nil
+}
+
 func (c *Client) Ack(topic, bindKey, id string) error {
 	cli := &http.Client{}
-	resp, err := cli.Get(fmt.Sprintf(ackBase, c.addr, id, topic, bindKey))
+	resp, err := cli.Get(fmt.Sprintf(ackBase, c.httpAddr, id, topic, bindKey))
 	if err != nil {
 		log.Fatalln(err)
 		return err
@@ -257,8 +296,9 @@ func InitClients(endpoints string) ([]*Client, error) {
 
 	for _, info := range infos {
 		httpAddr := info["http_addr"]
+		tcpAddr := info["tcp_addr"]
 		weight, _ := strconv.Atoi(info["weight"])
-		c := NewClient(httpAddr, weight)
+		c := NewClient(httpAddr, tcpAddr, weight)
 		clients = append(clients, c)
 	}
 
@@ -297,6 +337,6 @@ func ChooseQueueInCluster(endpoint string) *Client {
 // 与队列建立连接 endpoint 是 esq节点的地址
 func ChooseQueue(endpoint string) *Client {
 	return &Client{
-		addr: endpoint,
+		httpAddr: endpoint,
 	}
 }

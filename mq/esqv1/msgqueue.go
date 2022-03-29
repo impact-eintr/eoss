@@ -11,6 +11,7 @@ import (
 var (
 	TOPIC_heartbeat = "Ping..."
 	TOPIC_filereq   = "File..."
+	TOPIC_fileresp  = "Found..."
 )
 
 var (
