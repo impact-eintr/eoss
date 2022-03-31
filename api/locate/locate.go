@@ -31,13 +31,13 @@ func Get(ctx *gin.Context) {
 func Locate(name string) (locateInfo map[int]string) {
 	if os.Getenv("RAFTD_SERVER") != "" {
 		cli := esqv1.ChooseQueueInCluster(os.Getenv("RAFTD_SERVER"))
-		cli.Config_(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
+		cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
 
 		mapKey := fmt.Sprintf("%s-%d", name, time.Now().Unix())
 
 		// 向dataNode集群广播消息:  ip:port-文件名-时间戳
 		localServer := fmt.Sprintf("%s:%d", os.Getenv("LISTEN_ADDRESS"), enet.GlobalObject.Port)
-		cli.Push_(fmt.Sprintf("%s-%s", localServer, mapKey), esqv1.TOPIC_filereq, "client*", 0)
+		cli.Push(fmt.Sprintf("%s-%s", localServer, mapKey), esqv1.TOPIC_filereq, "client*", 0)
 
 		// 等待定位结果
 		// 注册消息

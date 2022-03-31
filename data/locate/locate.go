@@ -45,13 +45,13 @@ func StartLocate() {
 	if os.Getenv("RAFTD_SERVER") != "" {
 		for {
 			cli := esqv1.ChooseQueueInCluster(os.Getenv("RAFTD_SERVER"))
-			cli.Declare_(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
-			cli.Config_(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
+			cli.Declare(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
+			cli.Config(esqv1.TOPIC_filereq, 0, 2, 5, 3) // 不自动回复了
 
 			// 发送消息
 			func() {
 				for {
-					msg, err := cli.Pop_(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
+					msg, err := cli.Pop(esqv1.TOPIC_filereq, "client"+os.Getenv("LISTEN_ADDRESS"))
 					if err != nil {
 						// TODO 如何处理这里呢
 						defer time.Sleep(100 * time.Millisecond)
