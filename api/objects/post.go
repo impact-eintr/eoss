@@ -26,8 +26,13 @@ func Post(c *gin.Context) {
 		errmsg.ErrLog(c, http.StatusBadRequest, e.Error())
 		return
 	}
+	location := utils.GetLocationFromHeader(c.Request.Header)
+	if location == "" {
+		errmsg.ErrLog(c, http.StatusBadRequest, e.Error())
+		return
+	}
 	if locate.Exist(url.PathEscape(hash)) {
-		e = es.AddVersion(name, hash, size)
+		e = es.AddVersion(name, hash, location, size)
 		if e != nil {
 			errmsg.ErrLog(c, http.StatusInternalServerError, e.Error())
 		} else {
@@ -41,7 +46,7 @@ func Post(c *gin.Context) {
 		errmsg.ErrLog(c, http.StatusServiceUnavailable, e.Error())
 		return
 	}
-	stream, e := rs.NewRSResumablePutStream(ds, name, url.PathEscape(hash), size)
+	stream, e := rs.NewRSResumablePutStream(ds, name, url.PathEscape(hash), location, size)
 	if e != nil {
 		errmsg.ErrLog(c, http.StatusInternalServerError, e.Error())
 		return

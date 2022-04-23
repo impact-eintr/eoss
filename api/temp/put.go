@@ -65,7 +65,7 @@ func Put(c *gin.Context) {
 				stream.Commit(true)
 			}
 			// 正式添加该文件
-			e = es.AddVersion(stream.Name, stream.Hash, stream.Size)
+			e = es.AddVersion(stream.Name, stream.Hash, stream.Location, stream.Size)
 			if e != nil {
 				errmsg.ErrLog(c, http.StatusInternalServerError, e.Error())
 			}

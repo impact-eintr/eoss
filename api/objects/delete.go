@@ -16,7 +16,7 @@ func Delete(ctx *gin.Context) {
 		return
 	}
 
-	err = es.PutMetadata(name, version.Version+1, 0, "")
+	err = es.PutMetadata(name, version.Version+1, 0, "", "")
 	if err != nil {
 		errmsg.ErrLog(ctx, http.StatusInternalServerError, err.Error())
 	}

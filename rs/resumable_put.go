@@ -16,6 +16,7 @@ type resumableToken struct {
 	Name    string
 	Size    int64
 	Hash    string
+	Location string
 	Servers []string
 	Uuids   []string
 }
@@ -25,7 +26,7 @@ type RSResumablePutStream struct {
 	*resumableToken
 }
 
-func NewRSResumablePutStream(dataServers []string, name, hash string, size int64) (*RSResumablePutStream, error) {
+func NewRSResumablePutStream(dataServers []string, name, hash, location string, size int64) (*RSResumablePutStream, error) {
 	putStream, e := NewRSPutStream(dataServers, hash, size)
 	if e != nil {
 		return nil, e
@@ -34,7 +35,7 @@ func NewRSResumablePutStream(dataServers []string, name, hash string, size int64
 	for i := range uuids {
 		uuids[i] = putStream.writers[i].(*objectstream.TempPutStream).Uuid
 	}
-	token := &resumableToken{name, size, hash, dataServers, uuids}
+	token := &resumableToken{name, size, hash, location, dataServers, uuids}
 	return &RSResumablePutStream{putStream, token}, nil
 }
 

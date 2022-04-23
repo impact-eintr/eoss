@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,8 +49,23 @@ func GetSizeFromHeader(h http.Header) int64 {
 	return size
 }
 
+func GetLocationFromHeader(h http.Header) string {
+	if l := h.Get("location") ;l!= "" {
+		return l
+	} else if l = h.Get("Location");l != "" {
+		return l
+	} else {
+		return ""
+	}
+}
+
 func CalculateHash(r io.Reader) string {
 	h := sha256.New()
 	io.Copy(h, r)
-	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+	src := h.Sum(nil)
+	hex.EncodeToString(src)
+	hexdst := []byte(hex.EncodeToString(src))
+
+	return base64.StdEncoding.EncodeToString(hexdst)
+	//return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }

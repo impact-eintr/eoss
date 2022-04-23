@@ -21,7 +21,7 @@ type Metadata struct {
 	Version  int    `json:"version"`
 	Size     int64  `json:"size"`
 	Hash     string `json:"hash"`
-	Path     string `json:"path"`
+	Location     string `json:"location"`
 	Thumbnai string `json:"thumbnai"`
 }
 
@@ -37,9 +37,9 @@ type searchResult struct {
 }
 
 // TODO 缩略图 目录
-func PutMetadata(name string, version int, size int64, hash string) error {
-	doc := fmt.Sprintf(`{"name":"%s","version":%d,"size":%d,"hash":"%s"}`,
-		name, version, size, hash)
+func PutMetadata(name string, version int, size int64, hash ,location string) error {
+	doc := fmt.Sprintf(`{"name":"%s","version":%d,"size":%d,"hash":"%s","location":"%s"}`,
+		name, version, size, hash, location)
 	client := http.Client{}
 	url := fmt.Sprintf("http://%s/metadata/objects/%s_%d?op_type=create",
 		os.Getenv("ES_SERVER"), name, version)
@@ -50,7 +50,7 @@ func PutMetadata(name string, version int, size int64, hash string) error {
 		return e
 	}
 	if r.StatusCode == http.StatusConflict {
-		return PutMetadata(name, version+1, size, hash)
+		return PutMetadata(name, version+1, size, hash, location)
 	}
 	if r.StatusCode != http.StatusCreated {
 		result, _ := ioutil.ReadAll(r.Body)
@@ -110,12 +110,12 @@ func SearchLatestVersion(name string) (meta Metadata, err error) {
 	return
 }
 
-func AddVersion(name, hash string, size int64) error {
+func AddVersion(name, hash, location string, size int64) error {
 	version, err := SearchLatestVersion(name)
 	if err != nil {
 		return err
 	}
-	return PutMetadata(name, version.Version+1, size, hash)
+	return PutMetadata(name, version.Version+1, size, hash, location)
 }
 
 func SearchAllVersions(name string, from, size int) ([]Metadata, error) {
@@ -161,24 +161,24 @@ func SearchVersionStatus(min_doc_count int) ([]Bucket, error) {
 	client := http.Client{}
 	url := fmt.Sprintf("http://%s/metadata/_search", os.Getenv("ES_SERVER"))
 	body := fmt.Sprintf(`
-        {
-          "size": 0,
-          "aggs": {
-            "group_by_name": {
-              "terms": {
-                "field": "name",
-                "min_doc_count": %d
-              },
-              "aggs": {
-                "min_version": {
-                  "min": {
-                    "field": "version"
-                  }
-                }
-              }
-            }
-          }
-        }`, min_doc_count)
+				{
+					"size": 0,
+					"aggs": {
+						"group_by_name": {
+							"terms": {
+								"field": "name",
+								"min_doc_count": %d
+							},
+							"aggs": {
+								"min_version": {
+									"min": {
+										"field": "version"
+									}
+								}
+							}
+						}
+					}
+				}`, min_doc_count)
 	request, _ := http.NewRequest("GET", url, strings.NewReader(body))
 	r, e := client.Do(request)
 	if e != nil {
@@ -279,6 +279,7 @@ func LatestMetadatas() (result []Metadata) {
 	return
 }
 
+// 定位查询
 func Test() (result []Metadata) {
 	ctx := context.Background()
 

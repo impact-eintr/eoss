@@ -26,6 +26,8 @@ func Put(ctx *gin.Context) {
 	size := utils.GetSizeFromHeader(ctx.Request.Header)
 	// 获取文件 name
 	name := ctx.Param("name")
+	// 获取定位数据
+	location := utils.GetLocationFromHeader(ctx.Request.Header)
 
 	// 先准备存数据
 	c, err := storeObject(ctx.Request.Body, hash, size)
@@ -39,12 +41,11 @@ func Put(ctx *gin.Context) {
 	}
 
 	// 再存元数据 注意如果新上传的文件相较上一个版本没有改变 就不会更新实际存在的文件 只更新元数据
-	err = es.AddVersion(name, hash, size)
+	err = es.AddVersion(name, hash, location, size)
 	if err != nil {
 		errmsg.ErrLog(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
-
 }
 
 // r: 文件流
